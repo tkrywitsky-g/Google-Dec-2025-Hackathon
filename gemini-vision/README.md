@@ -11,16 +11,22 @@ Your company monitors thousands of kilometers of Right-of-Way (ROW). Currently, 
 Your goal today: Take this "Starter Kit"—which detects excavators—and make it smarter, safer, and more robust.
 
 ## 🏗 The Architecture
-This repository implements a **Sequential Agent Chain** using Google's Agent Developer Kit (ADK) patterns.
-
-
+This repository implements a **Sequential Agent Pipeline** using Google's Agent Developer Kit (ADK). Think of it as an assembly line where each agent specializes in one task:
 
 1.  **Agent 1: The Scout (Gemini 2.5 Flash)**
-    * *Role:* The "Eyes." It uses Multimodal capabilities to describe the scene and list every object it sees (trucks, cows, digging, markers).
-2.  **Agent 2: The Risk Officer (Gemini 3.0 Pro)**
-    * *Role:* The "Brain." It takes the Scout's list and cross-references it with a (mock) Permit Database. It decides if an object is a threat or authorized work.
+    * *Role:* The "Eyes." Uses vision analysis to describe the scene and identify objects (vehicles, livestock, machinery, digging activity).
+    * *Tool:* `analyze_aerial_image()` - processes images and returns structured JSON with scene description and detected objects.
+
+2.  **Agent 2: The Risk Officer (Gemini 2.5 Flash)**
+    * *Role:* The "Brain." Evaluates the scene intelligently:
+      - Assumes typical rural scenes are safe (livestock, farm vehicles, normal weather)
+      - Only checks permits for unusual activity (heavy machinery, excavation)
+    * *Tool:* `check_permit_database()` - queries active permits when needed.
+
 3.  **Agent 3: The Dispatcher (Gemini 2.5 Flash)**
-    * *Role:* The "Voice." It formats the result into a specific action (e.g., an SMS alert, a Work Order, or a Log Entry).
+    * *Role:* The "Voice." Formats the assessment into actionable output:
+      - High Risk → Urgent "STOP WORK" SMS alert
+      - Low Risk → Standard log entry
 
 ## 🚀 Getting Started
 
@@ -29,41 +35,75 @@ This repository implements a **Sequential Agent Chain** using Google's Agent Dev
 * A Google Cloud Project with Vertex AI API enabled
 
 ### Installation
-1.  **Clone the repo:**
+1.  **Navigate to the project:**
     ```bash
-    git clone [https://github.com/your-org/skyguard-starter.git](https://github.com/your-org/skyguard-starter.git)
-    cd skyguard-starter
+    cd gemini-vision
     ```
 
 2.  **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
+    
+    This installs:
+    - `streamlit` - for the web UI
+    - `google-adk` - Google's Agent Developer Kit
+    - `python-dotenv` - for environment variables
 
 3.  **Set your API Key:**
-    Create a `.env` file and add your key:
+    Create a `.env` file in the `gemini-vision` directory:
     ```text
     GOOGLE_API_KEY="your_api_key_here"
     ```
 
-4.  **Run the App:**
+4.  **Add test images:**
+    Place aerial images in `assets/` directory:
+    - `clear.jpg` - clear ROW scene
+    - `farm.jpg` - farm with livestock
+    - `excavator.jpg` - heavy machinery
+
+5.  **Run the App:**
     ```bash
     streamlit run app.py
     ```
+    
+    The app will open at `http://localhost:8501`
+
+## 🎨 The UI
+The Streamlit interface has three columns:
+
+1. **The View** - Displays the aerial image (select scenario or upload custom)
+2. **The Brain** - Shows Scout analysis and Risk assessment with expandable sections
+3. **The Action** - Displays the final Dispatcher alert (color-coded by risk level)
 
 ## 🛠 Hackathon Challenges (Extend this Code!)
 
-This starter kit is just the beginning. Choose a "Bounty" below and use your ADK skills to extend the functionality:
+This starter kit is just the beginning. Choose a challenge below and use ADK to extend the functionality:
 
 * **The "Weather-Wise" Extension:**
-    * *Challenge:* Add a new Agent that checks weather data. If the Scout sees heavy mud and the Weather Agent reports rain, flag the site for "Slope Stability Risk" even if no vehicles are present.
+    * Add a 4th agent that checks weather APIs. If Scout sees mud + Weather Agent reports recent rain, flag for "Slope Stability Risk."
+    * Hint: Add a new tool function and insert the agent into the `SequentialAgent` chain.
+
 * **The "Forensics" Upgrade:**
-    * *Challenge:* Modify the Scout's prompt to zoom in on machinery. Can you identify the company logo on the side of the truck?
+    * Enhance the Scout's vision prompt to identify company logos on vehicles.
+    * Hint: Modify the `analyze_aerial_image` tool prompt to focus on text/branding detection.
+
 * **The "Human-in-the-Loop" Handover:**
-    * *Challenge:* If the Risk Officer is "Unsure" (confidence < 70%), route the alert to a new "Human Review" queue instead of sending an automatic SMS.
-* **The "Audio" Input:**
-    * *Challenge:* Simulate a drone audio feed. Create an agent that listens for heavy machinery sounds to confirm visual detections.
+    * Add a confidence score to the Risk Agent's output schema. If < 70%, route to human review instead of auto-dispatch.
+    * Hint: Update the `RiskAssessment` Pydantic model and add conditional logic in Dispatcher.
+
+* **The "Multi-Modal" Boost:**
+    * Add audio analysis. Create a tool that processes drone audio files to detect machinery sounds.
+    * Hint: Use Gemini's audio capabilities with a new analysis function.
 
 ## 📚 Resources
-* [Google Generative AI SDK Documentation](https://ai.google.dev/python/google-generative-ai)
+* [Google ADK Documentation](https://github.com/google/adk)
+* [Google Generative AI SDK](https://ai.google.dev/gemini-api/docs)
 * [Streamlit Documentation](https://docs.streamlit.io/)
+
+## 🔧 Key Technical Details
+* **Framework:** Google Agent Developer Kit (ADK)
+* **Pipeline:** `SequentialAgent` chains Scout → Risk → Dispatcher
+* **Structured Output:** Pydantic schemas ensure consistent JSON responses
+* **Tools:** Function calling for vision analysis and permit database
+* **Session Management:** In-memory sessions for stateful conversations

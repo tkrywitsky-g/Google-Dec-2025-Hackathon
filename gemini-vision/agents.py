@@ -3,6 +3,8 @@ import json
 from google.adk.agents import Agent, SequentialAgent
 from google import genai
 from google.genai import types
+from pydantic import BaseModel, Field
+from typing import List
 
 # Mock Permit Database Tool
 def check_permit_database(gps_location: str) -> dict:
@@ -12,19 +14,29 @@ def check_permit_database(gps_location: str) -> dict:
         gps_location (str): The GPS location to check (e.g., "Location A").
 
     Returns:
-        dict: A dictionary containing the permit status and reasoning.
+        dict: A dictionary containing the active permits for the site.
     """
-    # Mock database logic
-    if "Location A" in gps_location:
-        return {"permit_active": True, "details": "Valid permit #12345 found for excavation."}
-    elif "Location B" in gps_location:
-        return {"permit_active": False, "details": "No active permits found for this location."}
-    else:
-        return {"permit_active": False, "details": "Location not found in database."}
+    # Return active permits for vegetation management and ATV based inspection
+    return {
+        "active_permits": [
+            {
+                "permit_id": "PM-2025-001",
+                "type": "Vegetation Management",
+                "status": "Active",
+                "details": "Authorized vegetation clearing and maintenance"
+            },
+            {
+                "permit_id": "PM-2025-002",
+                "type": "ATV Based Inspection",
+                "status": "Active",
+                "details": "Authorized ATV use for infrastructure inspection"
+            }
+        ]
+    }
 
 
 # Vision Analysis Function Tool - Uses genai client
-def analyze_aerial_image(image_path: str, model_name: str = "gemini-2.0-flash-exp") -> dict:
+def analyze_aerial_image(image_path: str, model_name: str = "gemini-2.5-flash") -> dict:
     """Analyzes an aerial image for energy infrastructure monitoring.
     
     Args:
@@ -67,7 +79,11 @@ def analyze_aerial_image(image_path: str, model_name: str = "gemini-2.0-flash-ex
 
 
 # Scout Agent - Uses vision analysis tool
-def get_scout_agent(model_name="gemini-2.0-flash-exp"):
+def get_scout_agent(model_name="gemini-2.5-flash"):
+    class ScoutOutput(BaseModel):
+        scene_description: str = Field(description="Detailed description of the scene including weather, terrain, and lighting conditions.")
+        detected_objects: List[str] = Field(description="List of detected objects or potential risks in the image.")
+    
     return Agent(
         name="scout_agent",
         model=model_name,
@@ -79,12 +95,17 @@ def get_scout_agent(model_name="gemini-2.0-flash-exp"):
             "Present the analysis results in a clear, structured format."
         ),
         tools=[analyze_aerial_image],
+        output_schema=ScoutOutput,
         output_key="scout_results"
     )
 
 
 # Risk Agent - Reasoning + Tool with state injection
-def get_risk_agent(model_name="gemini-2.0-flash-exp"):
+def get_risk_agent(model_name="gemini-2.5-flash"):
+    class RiskAssessment(BaseModel):
+        risk_level: str = Field(description="Risk level assessment: either 'High' or 'Low'.")
+        reasoning: str = Field(description="Detailed explanation of the risk assessment decision.")
+    
     return Agent(
         name="risk_agent",
         model=model_name,
@@ -92,21 +113,33 @@ def get_risk_agent(model_name="gemini-2.0-flash-exp"):
         instruction=(
             "You are a risk assessment officer. "
             "Review the scout's analysis: {scout_results}\n\n"
-            "Based on the detected objects:\n"
-            "- If heavy machinery or digging activity is present, use the 'check_permit_database' tool to verify permits.\n"
-            "- Assume the location is 'Location A' if the scene looks like a permitted site, or 'Location B' if it looks unauthorized.\n"
-            "- If a permit exists, risk is LOW.\n"
-            "- If no permit exists, risk is HIGH.\n"
-            "- If only benign objects (cows, pickup trucks on roads) are present, risk is LOW.\n\n"
+            "ASSUME BENIGN CONDITIONS for typical rural scenes:\n"
+            "- Livestock (cows, horses, etc.) are normal and expected - risk is LOW\n"
+            "- Standard vehicles on roads or farm vehicles (pickups, tractors, combines) are normal - risk is LOW\n"
+            "- Clear weather and typical terrain features are normal - risk is LOW\n\n"
+            "ONLY check permits using 'check_permit_database' if you detect unusual activities such as:\n"
+            "- Heavy machinery (excavators, backhoes, bulldozers)\n"
+            "- Digging or excavation activity\n"
+            "- Unexpected vehicles or equipment out of place for a rural setting\n"
+            "- Suspicious or unauthorized activities near infrastructure\n\n"
+            "If you need to check permits:\n"
+            "- Use the tool to retrieve active permits\n"
+            "- Compare detected activities against permitted activities (Vegetation Management, ATV Based Inspection)\n"
+            "- If activity matches permits, risk is LOW\n"
+            "- If activity does NOT match any permits, risk is HIGH\n\n"
             "Output a structured assessment with 'risk_level' (High/Low) and 'reasoning' (string explanation)."
         ),
         tools=[check_permit_database],
+        output_schema=RiskAssessment,
         output_key="risk_assessment"
     )
 
 
 # Dispatcher Agent - Action with state injection
-def get_dispatcher_agent(model_name="gemini-2.0-flash-exp"):
+def get_dispatcher_agent(model_name="gemini-2.5-flash"):
+    class DispatcherOutput(BaseModel):
+        message: str = Field(description="The final output message - either an urgent SMS alert or a standard log entry.")
+    
     return Agent(
         name="dispatcher_agent",
         model=model_name,
@@ -116,15 +149,15 @@ def get_dispatcher_agent(model_name="gemini-2.0-flash-exp"):
             "Based on the risk assessment: {risk_assessment}\n\n"
             "Generate the final output:\n"
             "- If Risk is HIGH, draft an urgent 'STOP WORK' SMS alert to the field manager.\n"
-            "- If Risk is LOW, generate a standard log entry.\n\n"
-            "Return ONLY the final text payload (SMS or log entry)."
+            "- If Risk is LOW, generate a standard log entry."
         ),
+        output_schema=DispatcherOutput,
         output_key="final_action"
     )
 
 
 # Sequential Agent Pipeline
-def get_infrastructure_monitoring_pipeline(model_name="gemini-2.0-flash-exp"):
+def get_infrastructure_monitoring_pipeline(model_name="gemini-2.5-flash"):
     """Creates a sequential agent pipeline for infrastructure monitoring.
     
     Returns:
@@ -142,7 +175,7 @@ def get_infrastructure_monitoring_pipeline(model_name="gemini-2.0-flash-exp"):
 
 
 # Backward compatibility: keep the old function for existing code
-def run_scout_agent(image_path, model_name="gemini-2.0-flash-exp"):
+def run_scout_agent(image_path, model_name="gemini-2.5-flash"):
     """Legacy function for backward compatibility. Use get_infrastructure_monitoring_pipeline() for new code."""
     result = analyze_aerial_image(image_path, model_name)
     return json.dumps(result)

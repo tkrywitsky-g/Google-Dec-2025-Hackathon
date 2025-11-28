@@ -61,7 +61,7 @@ else:
 with col1:
     st.header("The View")
     if image_path and os.path.exists(image_path):
-        st.image(image_path, caption="Aerial Feed", use_container_width=True)
+        st.image(image_path, caption="Aerial Feed", width="stretch")
     else:
         st.warning(f"Image not found: {image_path}")
         st.info("Please ensure assets/clear.png, assets/farm.png, and assets/excavator.png exist.")
@@ -85,7 +85,7 @@ if st.button("Analyze Sector"):
             # Use asyncio to create session properly
             async def create_session_async():
                 return await session_service.create_session(
-                    app_name="skyguard", 
+                    app_name="infrastructure_monitoring_pipeline", 
                     user_id="user1"
                 )
             
@@ -93,7 +93,7 @@ if st.button("Analyze Sector"):
             
             runner = Runner(
                 agent=pipeline, 
-                app_name="skyguard", 
+                app_name="infrastructure_monitoring_pipeline", 
                 session_service=session_service
             )
             
