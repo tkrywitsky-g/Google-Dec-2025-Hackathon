@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import json
 from dotenv import load_dotenv
-from agents import run_scout_agent, get_risk_agent, get_dispatcher_agent
+from agents import run_scout_agent, get_infrastructure_monitoring_pipeline
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
@@ -74,103 +74,100 @@ if st.button("Analyze Sector"):
         st.error("Please select or upload a valid image.")
     else:
         try:
-            # Step 1: Scout
+            import asyncio
+            
+            # Create the sequential agent pipeline
+            pipeline = get_infrastructure_monitoring_pipeline()
+            
+            # Set up ADK session and runner using async
+            session_service = InMemorySessionService()
+            
+            # Use asyncio to create session properly
+            async def create_session_async():
+                return await session_service.create_session(
+                    app_name="skyguard", 
+                    user_id="user1"
+                )
+            
+            session = asyncio.run(create_session_async())
+            
+            runner = Runner(
+                agent=pipeline, 
+                app_name="skyguard", 
+                session_service=session_service
+            )
+            
+            # Create user message with the image path
+            user_content = types.Content(
+                role='user', 
+                parts=[types.Part(text=f"Please analyze this aerial image: {image_path}")]
+            )
+            
+            # Run the sequential pipeline and collect outputs
+            scout_output = ""
+            risk_assessment_text = ""
+            final_alert_text = ""
+            
+            with st.status("Running Infrastructure Monitoring Pipeline...", expanded=True) as main_status:
+                events = runner.run(
+                    user_id="user1", 
+                    session_id=session.id, 
+                    new_message=user_content
+                )
+                
+                for event in events:
+                    # Track which agent is currently active
+                    if event.author == "scout_agent":
+                        if event.is_final_response() and event.content:
+                            scout_output = event.content.parts[0].text
+                    elif event.author == "risk_agent":
+                        if event.is_final_response() and event.content:
+                            risk_assessment_text = event.content.parts[0].text
+                    elif event.author == "dispatcher_agent":
+                        if event.is_final_response() and event.content:
+                            final_alert_text = event.content.parts[0].text
+                
+                main_status.update(label="Pipeline Complete", state="complete")
+            
+            # Display results in columns
             with col2:
                 st.header("The Brain")
                 
-                with st.status("Scout Agent Analyzing...", expanded=True) as status:
-                    scout_output = run_scout_agent(image_path)
+                # Scout Results
+                with st.expander("Scout Analysis", expanded=True):
                     st.write("**Scout Output:**")
-                    try:
-                        scout_json = json.loads(scout_output)
-                        st.json(scout_json)
-                    except:
-                        st.write(scout_output)
-                    status.update(label="Scout Agent Complete", state="complete")
+                    if scout_output:
+                        try:
+                            # Try to parse as JSON if it looks like JSON
+                            if scout_output.strip().startswith('{'):
+                                scout_json = json.loads(scout_output)
+                                st.json(scout_json)
+                            else:
+                                st.write(scout_output)
+                        except:
+                            st.write(scout_output)
+                    else:
+                        st.info("Scout analysis in progress...")
                 
-                # Step 2: Risk Officer
-                with st.status("Risk Officer Assessing...", expanded=True) as status:
-                    risk_agent = get_risk_agent()
-                    
-                    # Set up ADK session and runner
-                    session_service = InMemorySessionService()
-                    session = session_service.create_session(
-                        app_name="skyguard", 
-                        user_id="user1", 
-                        session_id="risk_session"
-                    )
-                    runner = Runner(
-                        agent=risk_agent, 
-                        app_name="skyguard", 
-                        session_service=session_service
-                    )
-                    
-                    # Create user message
-                    user_content = types.Content(
-                        role='user', 
-                        parts=[types.Part(text=f"Here is the scout report: {scout_output}")]
-                    )
-                    
-                    # Run agent and extract response
-                    risk_assessment_text = ""
-                    events = runner.run(
-                        user_id="user1", 
-                        session_id="risk_session", 
-                        new_message=user_content
-                    )
-                    
-                    for event in events:
-                        if event.is_final_response() and event.content:
-                            risk_assessment_text = event.content.parts[0].text
-                    
-                    st.write("**Risk Assessment:**")
-                    st.write(risk_assessment_text)
-                    status.update(label="Risk Officer Complete", state="complete")
-
-            # Step 3: Dispatcher
+                # Risk Assessment Results
+                with st.expander("Risk Assessment", expanded=True):
+                    st.write("**Risk Officer Output:**")
+                    if risk_assessment_text:
+                        st.write(risk_assessment_text)
+                    else:
+                        st.info("Risk assessment in progress...")
+            
             with col3:
                 st.header("The Action")
-                with st.status("Dispatcher Generating Alert...", expanded=True) as status:
-                    dispatcher_agent = get_dispatcher_agent()
-                    
-                    # Set up ADK session and runner
-                    session_service_dispatcher = InMemorySessionService()
-                    session_dispatcher = session_service_dispatcher.create_session(
-                        app_name="skyguard", 
-                        user_id="user1", 
-                        session_id="dispatcher_session"
-                    )
-                    runner_dispatcher = Runner(
-                        agent=dispatcher_agent, 
-                        app_name="skyguard", 
-                        session_service=session_service_dispatcher
-                    )
-                    
-                    # Create user message
-                    user_content_dispatcher = types.Content(
-                        role='user', 
-                        parts=[types.Part(text=f"Here is the risk assessment: {risk_assessment_text}")]
-                    )
-                    
-                    # Run agent and extract response
-                    final_alert_text = ""
-                    events_dispatcher = runner_dispatcher.run(
-                        user_id="user1", 
-                        session_id="dispatcher_session", 
-                        new_message=user_content_dispatcher
-                    )
-                    
-                    for event in events_dispatcher:
-                        if event.is_final_response() and event.content:
-                            final_alert_text = event.content.parts[0].text
-                    
-                    # Determine style based on content (simple heuristic)
-                    if "STOP WORK" in final_alert_text.upper() or "HIGH" in final_alert_text.upper():
-                        st.error(final_alert_text)
+                with st.expander("Dispatcher Alert", expanded=True):
+                    if final_alert_text:
+                        # Determine style based on content (simple heuristic)
+                        if "STOP WORK" in final_alert_text.upper() or "HIGH" in final_alert_text.upper():
+                            st.error(final_alert_text)
+                        else:
+                            st.success(final_alert_text)
                     else:
-                        st.success(final_alert_text)
-                    
-                    status.update(label="Dispatcher Complete", state="complete")
+                        st.info("Generating alert...")
                 
         except Exception as e:
             st.error(f"An error occurred: {e}")
