@@ -1,0 +1,9 @@
+timestamp,site_id,log_level,message
+2025-07-24 07:45:00,SITE-01,WARN,Intermittent packet loss detected on primary link.
+2025-07-24 07:50:00,SITE-02,WARN,VPN tunnel flap detected.
+2025-07-24 08:05:00,SITE-01,ERROR,"VRRP State: MASTER to BACKUP"
+2025-07-24 08:10:00,SITE-03,WARN,High latency on primary link.
+2025-07-24 08:16:00,SITE-01,INFO,"VRRP State: BACKUP to MASTER"
+2025-07-24 08:20:00,SITE-04,ERROR,"VRRP State: MASTER to BACKUP"
+2025-07-24 08:25:00,SITE-02,ERROR,"VRRP State: MASTER to BACKUP"
+2025-07-24 08:30:00,SITE-01,ERROR,"VRRP State: MASTER to BACKUP"

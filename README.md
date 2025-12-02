@@ -16,3 +16,18 @@ A **Sequential Agent Pipeline** demo for infrastructure monitoring using Google'
 Built with ADK's `SequentialAgent`, Pydantic schemas for structured outputs, and a Streamlit UI.
 
 👉 [See full documentation](gemini-vision/README.md)
+
+## 🕵️ gemini-root-cause
+
+A **Sequential Agent Pipeline** for autonomous root cause analysis of network incidents.
+
+**Use Case:** Autonomous analysis of network incidents to pinpoint root causes and propose actionable solutions.
+
+**How it works:**
+- **NetworkLogResearcher Agent** - Analyzes ServiceNow incidents and Versa SD-WAN logs.
+- **NetworkAnalyst Agent** - Evaluates events and integrates external data (like weather) to form a hypothesis.
+- **DispatchCoordinator Agent** - Formats the assessment into actionable recommendations.
+
+Built with ADK's `SequentialAgent`, Pydantic schemas, and a Streamlit UI.
+
+👉 [See full documentation](gemini-root-cause/README.md)

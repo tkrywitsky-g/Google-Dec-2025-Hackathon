@@ -1,0 +1,2 @@
+ticket_id,timestamp,description,status,priority
+INC-90210,2025-07-24 08:15:00,"Critical Outage: 4 Sites Down (Northwest Region). Services are severely degraded.",Open,1 - Critical
