@@ -1,10 +1,16 @@
 import os
 import json
+import vertexai
 from google.adk.agents import Agent, SequentialAgent
-from google import genai
-from google.genai import types
+from vertexai.preview.generative_models import (
+    GenerativeModel,
+    Part,
+    GenerationConfig,
+    Image,
+)
 from pydantic import BaseModel, Field
 from typing import List
+
 
 # Mock Permit Database Tool
 def check_permit_database(gps_location: str) -> dict:
@@ -23,14 +29,14 @@ def check_permit_database(gps_location: str) -> dict:
                 "permit_id": "PM-2025-001",
                 "type": "Vegetation Management",
                 "status": "Active",
-                "details": "Authorized vegetation clearing and maintenance"
+                "details": "Authorized vegetation clearing and maintenance",
             },
             {
                 "permit_id": "PM-2025-002",
                 "type": "ATV Based Inspection",
                 "status": "Active",
-                "details": "Authorized ATV use for infrastructure inspection"
-            }
+                "details": "Authorized ATV use for infrastructure inspection",
+            },
         ]
     }
 
@@ -38,21 +44,24 @@ def check_permit_database(gps_location: str) -> dict:
 # Vision Analysis Function Tool - Uses genai client
 def analyze_aerial_image(image_path: str, model_name: str = "gemini-2.5-flash") -> dict:
     """Analyzes an aerial image for energy infrastructure monitoring.
-    
+
     Args:
         image_path (str): Path to the image file to analyze.
         model_name (str): The Gemini model to use for analysis.
-        
+
     Returns:
         dict: A dictionary with 'scene_description' (string) and 'detected_objects' (list of strings).
     """
     try:
-        client = genai.Client(api_key=os.environ.get("GOOGLE_API_KEY"))
-        
+        project_id = os.environ.get("GOOGLE_CLOUD_PROJECT")
+        location = os.environ.get("GOOGLE_CLOUD_LOCATION")
+
+        vertexai.init(project=project_id, location=location)
+
         # Read image
         with open(image_path, "rb") as f:
             image_bytes = f.read()
-            
+
         prompt = (
             "You are an expert aerial surveyor for energy infrastructure. "
             "Analyze the provided image. "
@@ -60,23 +69,22 @@ def analyze_aerial_image(image_path: str, model_name: str = "gemini-2.5-flash") 
             "and a structured list of potential risks or objects (vehicles, heavy machinery, digging activity, people, livestock). "
             "Output JSON with keys: 'scene_description' (string) and 'detected_objects' (list of strings)."
         )
-        
+
         # Determine mime type
         mime_type = "image/png"
         if image_path.lower().endswith((".jpg", ".jpeg")):
             mime_type = "image/jpeg"
-            
-        response = client.models.generate_content(
-            model=model_name,
-            contents=[prompt, types.Part.from_bytes(data=image_bytes, mime_type=mime_type)],
-            config=types.GenerateContentConfig(response_mime_type="application/json")
+
+        model = GenerativeModel(model_name)
+        response = model.generate_content(
+            [Part.from_data(data=image_bytes, mime_type=mime_type), prompt],
+            generation_config=GenerationConfig(response_mime_type="application/json"),
         )
-        
+
         # Parse the JSON response
         return json.loads(response.text)
     except Exception as e:
         return {"error": str(e), "scene_description": "", "detected_objects": []}
-
 
 # Scout Agent - Uses vision analysis tool
 def get_scout_agent(model_name="gemini-2.5-flash"):

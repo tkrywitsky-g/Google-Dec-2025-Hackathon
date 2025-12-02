@@ -19,9 +19,8 @@ st.title("SkyGuard ROW Monitor")
 # Sidebar
 with st.sidebar:
     st.header("Configuration")
-    api_key = st.text_input("Google API Key", type="password", value=os.getenv("GOOGLE_API_KEY", ""))
-    if api_key:
-        os.environ["GOOGLE_API_KEY"] = api_key
+    st.write(f"**Project ID:** {os.environ.get('GOOGLE_CLOUD_PROJECT')}")
+    st.write(f"**Location:** {os.environ.get('GOOGLE_CLOUD_LOCATION')}")
     
     st.header("Scenario Selector")
     scenario = st.radio("Choose a Scenario:", ["Clear", "Farm", "Excavator"])
@@ -68,9 +67,7 @@ with col1:
 
 # Execution Button
 if st.button("Analyze Sector"):
-    if not api_key and not os.getenv("GOOGLE_API_KEY"):
-        st.error("Please provide a Google API Key.")
-    elif not image_path or not os.path.exists(image_path):
+    if not image_path or not os.path.exists(image_path):
         st.error("Please select or upload a valid image.")
     else:
         try:
