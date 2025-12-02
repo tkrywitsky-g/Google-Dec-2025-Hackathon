@@ -4,7 +4,7 @@ from google.adk.agents import Agent, SequentialAgent
 from google.adk.tools import FunctionTool
 from google.adk.models import Gemini
 
-model = Gemini(model_name="gemini-2.5-pro")
+model = Gemini(model_name="gemini-2.5-flash")
 
 
 def read_logs(file_paths: list[str]) -> str:
