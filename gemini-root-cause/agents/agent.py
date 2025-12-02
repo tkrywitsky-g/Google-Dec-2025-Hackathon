@@ -3,9 +3,7 @@ import pandas as pd
 from google.adk.agents import Agent, SequentialAgent
 from google.adk.tools import FunctionTool
 from google.adk.models import Gemini
-
-model = Gemini(model_name="gemini-2.5-flash")
-
+import vertexai
 
 def read_logs(file_paths: list[str]) -> str:
     """
@@ -64,8 +62,11 @@ def update_servicenow_case(case_number: str, comment: str) -> str:
     # For this example, it returns a confirmation message.
     return f"ServiceNow case {case_number} updated with comment: '{comment}'."
 
-def create_rca_agent():
+def create_rca_agent(project_id: str, location: str, model_name: str):
     """Creates the Root Cause Analysis agent pipeline."""
+    vertexai.init(project=project_id, location=location)
+    model = Gemini(model_name=model_name)
+
     researcher = Agent(
         model=model,
         name="NetworkLogResearcher",

@@ -14,14 +14,19 @@ load_dotenv()
 st.set_page_config(page_title="Gemini RCA Agent", layout="wide")
 
 # Title
-st.title("Gemini Root Cause Analysis Agent")
+st.title("Gemini Advanced Root Cause Analysis Agent")
 
 # Sidebar
 with st.sidebar:
     st.header("Configuration")
-    api_key = st.text_input("Google API Key", type="password", value=os.getenv("GOOGLE_API_KEY", ""))
-    if api_key:
-        os.environ["GOOGLE_API_KEY"] = api_key
+    project_id = st.text_input("Project ID", value=os.getenv("GOOGLE_CLOUD_PROJECT", ""), disabled=True)
+    location = st.text_input("Location", value=os.getenv("GOOGLE_CLOUD_LOCATION", ""), disabled=True)
+    model_name = st.selectbox("Model", ["gemini-1.5-flash", "gemini-2.5-flash", "gemini-2.5-pro"])
+
+    if project_id:
+        os.environ["PROJECT_ID"] = project_id
+    if location:
+        os.environ["LOCATION"] = location
 
 st.header("Root Cause Analysis Scenario")
 
@@ -51,14 +56,14 @@ with col1:
             st.error("data/weather.csv not found.")
 
 if st.button("Run Root Cause Analysis"):
-    if not api_key and not os.getenv("GOOGLE_API_KEY"):
-        st.error("Please provide a Google API Key.")
+    if not project_id or not location:
+        st.error("Please provide a Project ID and Location.")
     else:
         try:
             import asyncio
 
             # Create the RCA pipeline
-            pipeline = create_rca_agent()
+            pipeline = create_rca_agent(project_id, location, model_name)
             
             # Set up ADK session and runner
             session_service = InMemorySessionService()
