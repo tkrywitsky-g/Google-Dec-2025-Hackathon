@@ -165,15 +165,18 @@ def get_dispatcher_agent(model_name="gemini-2.5-flash"):
 
 
 # Sequential Agent Pipeline
-def get_infrastructure_monitoring_pipeline(model_name="gemini-2.5-flash"):
+def get_infrastructure_monitoring_pipeline(model_name: str = "gemini-2.5-flash"):
     """Creates a sequential agent pipeline for infrastructure monitoring.
     
+    Args:
+        model_name (str): The Gemini model to use for analysis.
+
     Returns:
         SequentialAgent: A pipeline that sequentially executes scout, risk, and dispatcher agents.
     """
-    scout_agent = get_scout_agent(model_name)
-    risk_agent = get_risk_agent(model_name)
-    dispatcher_agent = get_dispatcher_agent(model_name)
+    scout_agent = get_scout_agent(model_name=model_name)
+    risk_agent = get_risk_agent(model_name=model_name)
+    dispatcher_agent = get_dispatcher_agent(model_name=model_name)
     
     return SequentialAgent(
         name="infrastructure_monitoring_pipeline",

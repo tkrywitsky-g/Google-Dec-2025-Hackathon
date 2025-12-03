@@ -21,7 +21,12 @@ with st.sidebar:
     st.header("Configuration")
     st.write(f"**Project ID:** {os.environ.get('GOOGLE_CLOUD_PROJECT')}")
     st.write(f"**Location:** {os.environ.get('GOOGLE_CLOUD_LOCATION')}")
-    
+
+    selected_model = st.selectbox(
+        "Select Gemini Model:",
+        ["gemini-2.5-flash", "gemini-2.5-pro"]
+    )
+
     st.header("Scenario Selector")
     scenario = st.radio("Choose a Scenario:", ["Clear", "Farm", "Excavator"])
     
@@ -63,7 +68,7 @@ with col1:
         st.image(image_path, caption="Aerial Feed", width="stretch")
     else:
         st.warning(f"Image not found: {image_path}")
-        st.info("Please ensure assets/clear.png, assets/farm.png, and assets/excavator.png exist.")
+        st.info("Please ensure assets/clear.jpg, assets/farm.jpg, and assets/excavator.jpg exist or upload an image.")
 
 # Execution Button
 if st.button("Analyze Sector"):
@@ -74,7 +79,7 @@ if st.button("Analyze Sector"):
             import asyncio
             
             # Create the sequential agent pipeline
-            pipeline = get_infrastructure_monitoring_pipeline()
+            pipeline = get_infrastructure_monitoring_pipeline(model_name=selected_model)
             
             # Set up ADK session and runner using async
             session_service = InMemorySessionService()
