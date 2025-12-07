@@ -1,0 +1,5 @@
+streamlit
+google-adk
+python-dotenv
+google-cloud-aiplatform
+google-generativeai
