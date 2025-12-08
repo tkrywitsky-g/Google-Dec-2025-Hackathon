@@ -1,8 +1,8 @@
 import streamlit as st
 import os
-import json
+import pandas as pd
 from dotenv import load_dotenv
-from agents import get_pandid_agent,setup_artifact_service
+from agents import create_pid_agent,setup_artifact_service
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
@@ -12,118 +12,105 @@ import asyncio
 load_dotenv()
 
 # Page Config
-st.set_page_config(page_title="Flow Diagram Q&A", layout="wide")
+st.set_page_config(page_title="Gemini P&ID Orchestrator", layout="wide")
 
 # Title
-st.title("P&ID Agent Demo")
+st.title("Gemini P&ID Orchestrator Agent")
 
 # Sidebar
 with st.sidebar:
     st.header("Configuration")
-    st.write(f"**Project ID:** {os.environ.get('GOOGLE_CLOUD_PROJECT')}")
-    st.write(f"**Location:** {os.environ.get('GOOGLE_CLOUD_LOCATION')}")
+    project_id = st.text_input("Project ID", value=os.getenv("GOOGLE_CLOUD_PROJECT", ""), disabled=True)
+    location = st.text_input("Location", value=os.getenv("GOOGLE_CLOUD_LOCATION", ""), disabled=True)
 
-    selected_model = st.selectbox(
-        "Select Gemini Model:",
-        ["gemini-3-pro-preview"]
-    )
+    if project_id:
+        os.environ["PROJECT_ID"] = project_id
+    if location:
+        os.environ["LOCATION"] = location
 
-    user_question = st.text_input("Ask a question about the flow diagrams:")
+st.header("Root Cause Analysis Scenario")
 
-# Main Layout
 col1, col2, col3 = st.columns(3)
 
-# Execution Button
+with col1:
+    st.subheader("P&ID Document Q&A")
+    with st.expander("Context", expanded=False):
+        try:
+            with open("assets/pid_sample_1.pdf", "rb") as file:
+                st.pdf(file.read(), height=400)
+        except FileNotFoundError:
+            st.error("Please ensure 'pid_sample_1.pdf' is in the app's asset directory.")
+
+with col2:
+    st.subheader("P&ID Instructor")
+    with st.expander("Context", expanded=False):
+        try:
+            with open("assets/learning_course.pdf", "rb") as file:
+                st.pdf(file.read(), height=400)
+        except FileNotFoundError:
+            st.error("Please ensure 'learning_course.pdf' is in the app's asset directory.")
+
+with col3:
+    st.subheader("P&ID Drawer (Experimental)")
+    with st.expander("Context", expanded=False):
+        try:
+            with open("assets/reference_guide.pdf", "rb") as file:
+                st.pdf(file.read(), height=400)
+        except FileNotFoundError:
+            st.error("Please ensure 'reference_guide.pdf' is in the app's asset directory.")      
+        
+
 if st.button("Ask Question"):
-    if not user_question:
-        st.error("Please enter a question.")
+    if not project_id or not location:
+        st.error("Please provide a Project ID and Location.")
     else:
         try:
             import asyncio
 
-            # Create the sequential agent pipeline
-            pipeline = get_pandid_agent()
-
-            # Set up ADK session and runner using async
+            # Create the RCA pipeline
+            overseer_agent = create_pid_agent(project_id=project_id, location=location)
+            
+            # Set up ADK session and runner
             session_service = InMemorySessionService()
-
+            
             async def create_session_async():
                 return await session_service.create_session(
-                    app_name="flow_diagram_pipeline",
-                    user_id="user1",
-                    # Pass user_question to the session
-                    session_kwargs={"user_question": user_question}
+                    app_name="agents", 
+                    user_id="user1"
                 )
             
-            artifact_service = asyncio.run(setup_artifact_service())
-            if not artifact_service:
-                print("CRITICAL: Failed to load artifacts!")
-
+            # artifact_service = asyncio.run(setup_artifact_service())
+            # if not artifact_service:
+            #     print("CRITICAL: Failed to load artifacts!")
 
             session = asyncio.run(create_session_async())
 
             runner = Runner(
-                agent=pipeline,
-                app_name="flow_diagram_pipeline",
-                artifact_service=artifact_service,
+                agent=overseer_agent,
+                app_name="agents",
+                # artifact_service=artifact_service,
                 session_service=session_service
             )
-
-            # Create user message
+            
+            # The initial prompt for the researcher agent
             user_content = types.Content(
-                role='user',
-                parts=[types.Part(text=user_question)]
+                role='user', 
+                parts=[types.Part(text="Describe what the P&ID document sample1.pdf is about.")]
             )
 
-            # Run the sequential pipeline and collect outputs
-            reviewer_answer = ""
-            refined_answer = ""
-            public_info = ""
+            events = runner.run(
+                user_id="user1", 
+                session_id=session.id, 
+                new_message=user_content
+            )
 
-            with st.status("Running Flow Diagram Q&A Pipeline...", expanded=True) as main_status:
-                events = runner.run(
-                    user_id="user1",
-                    session_id=session.id,
-                    new_message=user_content
-                )
+            # # Run the sequential pipeline and collect outputs
+            # analyst_output = ""
+            # instructor_text = ""
+            # drafter_alert_text = ""
 
-                for event in events:
-                    if event.author == "diagram_reviewer_agent":
-                        if event.is_final_response() and event.content:
-                            reviewer_answer = event.content.parts[0].text
-                    elif event.author == "critique_agent":
-                        if event.is_final_response() and event.content:
-                            refined_answer = event.content.parts[0].text
-                    elif event.author == "public_retrieval_agent":
-                        if event.is_final_response() and event.content:
-                            public_info = event.content.parts[0].text
-
-                main_status.update(label="Pipeline Complete", state="complete")
-
-            # Display results in columns
-            with col1:
-                st.header("Initial Answer")
-                with st.expander("Diagram Reviewer Output", expanded=True):
-                    if reviewer_answer:
-                        st.write(reviewer_answer)
-                    else:
-                        st.info("Review in progress...")
-
-            with col2:
-                st.header("Refined Answer")
-                with st.expander("Critique Output", expanded=True):
-                    if refined_answer:
-                        st.write(refined_answer)
-                    else:
-                        st.info("Critique in progress...")
-
-            with col3:
-                st.header("Public Information")
-                with st.expander("Public Retrieval Output", expanded=True):
-                    if public_info:
-                        st.write(public_info)
-                    else:
-                        st.info("Public retrieval in progress...")
+            for event in events:
+                st.write(event)
 
         except Exception as e:
             st.error(f"An error occurred: {e}")

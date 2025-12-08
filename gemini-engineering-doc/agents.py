@@ -4,10 +4,11 @@ from google.adk.planners import BuiltInPlanner
 from google.adk.artifacts import InMemoryArtifactService
 from pathlib import Path
 from google.adk.tools import ToolContext
+import vertexai
+from google.adk.models import Gemini
 
 from google.adk import Agent
-model = "gemini-3-pro-preview"
-image_model = "gemini-3-pro-image-preview"
+
 ASSETS_DIR = Path("./assets")
 
 # TOOL for Analyst Sub Agent to get files from Artifact Serivce
@@ -35,7 +36,7 @@ def fetch_pid_diagram(tool_context: ToolContext):
     except Exception as e:
         return f"Error: Could not retrieve P&ID file. Details: {e}"
     
-def call_pid_analyst(query: str):
+def create_analyst_agent(model):
 
     return Agent(
         name="PID_Analyst",
@@ -44,7 +45,7 @@ def call_pid_analyst(query: str):
         # Register the tool we just created
         tools=[fetch_pid_diagram],
         
-        instructions="""
+        instruction="""
         You are a Senior Process Engineer acting as a P&ID Analyst.
         
         **Your Goal:** Answer technical questions based *strictly* on the provided P&ID diagram.
@@ -75,17 +76,18 @@ def fetch_course_guide(tool_context: ToolContext):
     except Exception as e:
         return f"Error: Could not retrieve Course Guide. Details: {e}"
     
-def call_course_instructor(query: str):
+def create_instructor_agent(model):
     """
     Call this agent when the user wants to learn concepts, 
     understands symbols, or needs a tutorial on P&ID standards.
     """
+    
     # Placeholder: Logic to invoke the Instructor Agent
     return Agent(
         name="PID_Instructor",
         model=model,
         tools=[fetch_course_guide],
-        instructions="""
+        instruction="""
         You are a friendly and knowledgeable P&ID Instructor.
         
         **Your Goal:** Teach the user about Process and Instrumentation Diagrams using the provided Course Guide.
@@ -140,17 +142,18 @@ def fetch_reference_guide(tool_context: ToolContext):
     except Exception as e:
         return f"Error: Could not retrieve Reference Guide. Details: {e}"
     
-def call_drafter(query: str):
+def create_drafter_agent(model):
     """
     Call this agent when the user asks to generate, draw, or visualize 
     a P&ID segment or component.
     """
+    
     # Placeholder: Logic to invoke the Drafter Agent
     return Agent(
         name="PID_Drafter",
-        model=image_model,
+        model=model,
         tools=[fetch_reference_guide],
-        instructions="""
+        instruction="""
         You are a Technical Draftsman specialized in generating P&ID schemas.
         
         **Your Goal:** Convert user requests into valid Mermaid.js flowchart code.
@@ -231,7 +234,12 @@ async def setup_artifact_service():
     return artifact_service
 
 
-def get_pandid_agent():
+def create_pid_agent(project_id: str, location: str):
+    print(f"project={project_id}, location={location}")
+    vertexai.init(project=project_id, location=location)
+    model = Gemini(model_name="gemini-2.5-pro") # gemini-3-pro-preview
+    image_model = Gemini(model_name="gemini-3-pro-image-preview")
+    
     overseer_instructions = """
         You are the "Overseer," a specialized orchestrator for a Chemical Engineering P&ID Assistant.
         Your goal is to route user requests to the correct specialist sub-agent.
@@ -246,17 +254,20 @@ def get_pandid_agent():
         - If the user greets you, reply politely and explain your capabilities.
         - If a query is ambiguous, ask for clarification before routing.
         """
+    # analyst = create_analyst_agent(model)
+    # instructor = create_instructor_agent(model)
+    # drafter = create_drafter_agent(image_model)
 
     return Agent(
         model=model,
-        name="Overseer",
-        instructions=overseer_instructions,
-        tools=[call_pid_analyst, call_course_instructor, call_drafter],
-        planner=BuiltInPlanner(
-            thinking_config=types.ThinkingConfig(
-                include_thoughts=True,
-                # thinking_budget=1024,
-                thinking_level="high",
-            )
-        )
+        name="pid_orchestrator",
+        instruction=overseer_instructions,
+        # tools=[analyst, instructor, drafter],
+        # planner=BuiltInPlanner(
+        #     thinking_config=types.ThinkingConfig(
+        #         include_thoughts=True,
+        #         thinking_budget=1024,
+        #         # thinking_level="high",
+        #     )
+        # )
     )

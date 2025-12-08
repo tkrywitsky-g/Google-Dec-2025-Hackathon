@@ -3,3 +3,5 @@ google-adk
 python-dotenv
 google-cloud-aiplatform
 google-generativeai
+streamlit[pdf]
+vertexai
