@@ -42,22 +42,24 @@ with col1:
 with col2:
     st.subheader("Analyst")
     st.image("assets/analyst.png", width='stretch')
-    with st.expander("Context", expanded=False):
-        try:
-            with open("assets/pid_sample_1.pdf", "rb") as file:
-                st.pdf(file.read(), height=400)
-        except FileNotFoundError:
-            st.error("Please ensure 'pid_sample_1.pdf' is in the app's asset directory.")
+    
 
 with col3:
     st.subheader("Instructor")
     st.image("assets/instructor.png", width='stretch')
-    with st.expander("Context", expanded=False):
+
+with st.expander("Analyst Context", expanded=False):
         try:
-            with open("assets/learning_course.pdf", "rb") as file:
-                st.pdf(file.read(), height=400)
+            with open("assets/pid_sample_1.pdf", "rb") as file:
+                st.pdf(file.read(), height=600)
         except FileNotFoundError:
-            st.error("Please ensure 'learning_course.pdf' is in the app's asset directory.")      
+            st.error("Please ensure 'pid_sample_1.pdf' is in the app's asset directory.")
+with st.expander("Instructor Context", expanded=False):
+    try:
+        with open("assets/learning_course.pdf", "rb") as file:
+            st.pdf(file.read(), height=600)
+    except FileNotFoundError:
+        st.error("Please ensure 'learning_course.pdf' is in the app's asset directory.")      
 
 questions = [
     "What does the P&ID document pid_sample_1.pdf depict?",
