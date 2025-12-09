@@ -1,22 +1,20 @@
 import streamlit as st
 import os
-import pandas as pd
 from dotenv import load_dotenv
 from agents import create_pid_agent, setup_artifact_service
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 import asyncio
-import json
 
 # Load environment variables
 load_dotenv()
 
 # Page Config
-st.set_page_config(page_title="Gemini P&ID Orchestrator", layout="wide")
+st.set_page_config(page_title="Gemini P&ID Multi-Agent", layout="wide")
 
 # Title
-st.title("Gemini P&ID Orchestrator Agent")
+st.title("Gemini P&ID Multi-Agent")
 
 # Sidebar
 with st.sidebar:

@@ -1,11 +1,9 @@
 from google.adk.agents import Agent
-from google.genai import types, Client
+from google.genai import types
 from google.adk.planners import BuiltInPlanner
 from google.adk.artifacts import InMemoryArtifactService
 from pathlib import Path
-from google.adk.tools import ToolContext
 import vertexai
-import os
 from google.adk.agents.callback_context import CallbackContext
 from google.adk.models import LlmResponse, LlmRequest
 from typing import Optional
@@ -27,10 +25,8 @@ async def inject_pid_context(callback_context: CallbackContext, llm_request: Llm
         if report_artifact and report_artifact.inline_data:
             print(f"Successfully loaded latest Python artifact '{filename}'.")
             print(f"MIME Type: {report_artifact.inline_data.mime_type}")
-            # Process the report_artifact.inline_data.data (bytes)
             pdf_bytes = report_artifact.inline_data.data
             print(f"Report size: {len(pdf_bytes)} bytes.")
-            # ... further processing ...
         else:
             print(f"Python artifact '{filename}' not found.")
 
@@ -87,10 +83,8 @@ async def inject_instructor_context(callback_context: CallbackContext, llm_reque
         if report_artifact and report_artifact.inline_data:
             print(f"Successfully loaded latest Python artifact '{filename}'.")
             print(f"MIME Type: {report_artifact.inline_data.mime_type}")
-            # Process the report_artifact.inline_data.data (bytes)
             pdf_bytes = report_artifact.inline_data.data
             print(f"Report size: {len(pdf_bytes)} bytes.")
-            # ... further processing ...
         else:
             print(f"Python artifact '{filename}' not found.")
 
@@ -228,11 +222,5 @@ def create_pid_agent(project_id: str, location: str):
         model="gemini-2.5-pro",
         name="overseer_agent",
         instruction=overseer_instructions,
-        sub_agents=[analyst, instructor],
-        planner=BuiltInPlanner(
-            thinking_config=types.ThinkingConfig(
-                include_thoughts=True,
-                thinking_budget=16000,
-            )
-        )
+        sub_agents=[analyst, instructor]
     )
