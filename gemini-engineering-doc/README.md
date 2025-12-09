@@ -14,7 +14,7 @@ This application uses an **Orchestrator Pattern**. A central "Overseer" routes r
 
 This project uses **Google ADK** to manage state, artifacts, and routing.
 
-* **The Overseer (Gemini 2.5 Pro):** The router. It identifies user intent and delegates the conversation to the correct sub-agent.
+* **The Overseer (Gemini 3 Pro):** The router. It identifies user intent and delegates the conversation to the correct sub-agent.
 * **The Analyst (Thinking Enabled):** A specialist equipped with `pid_sample_1.pdf`. It uses a 16k token thinking budget to carefully trace process lines and identify components.
 * **The Instructor (Thinking Enabled):** A specialist equipped with `learning_course.pdf`. It uses a 16k token thinking budget to formulate educational explanations based strictly on the provided text.
 

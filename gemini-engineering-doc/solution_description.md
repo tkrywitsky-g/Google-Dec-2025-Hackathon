@@ -7,7 +7,7 @@ Build a Python-based Streamlit application that demonstrates a **Multi-Agent Arc
 * **Language:** Python 3.10+
 * **Frontend:** Streamlit
 * **AI Framework:** Google Agent Developer Kit (`google-adk`)
-* **LLM:** Google Gemini 2.5 Pro (via Vertex AI)
+* **LLM:** Google Gemini 3 Pro (via Vertex AI)
 * **SDKs:** `google-genai`, `google-cloud-aiplatform` (for Vertex AI init)
 * **Key Features:**
     * **Thinking Models:** Sub-agents use `thinking_config` with a budget of 16k tokens for complex visual reasoning and educational planning.
@@ -23,11 +23,11 @@ The application implements a hierarchical architecture where a central "Overseer
     * Specific diagram questions $\rightarrow$ **Analyst**.
     * "How-to" or educational questions $\rightarrow$ **Instructor**.
     * Visualization requests $\rightarrow$ **Drafter** (Stub/Future).
-* **Configuration:** `gemini-2.5-pro` (Standard configuration for fast routing).
+* **Configuration:** `gemini-3-pro-preview` (Standard configuration for fast routing).
 
 ### Agent 2: "The Analyst" (Visual & Technical QA)
 * **Role:** Senior Process Engineer.
-* **Configuration:** `gemini-2.5-pro` with **Thinking Enabled** (16k budget).
+* **Configuration:** `gemini-3-pro-preview` with **Thinking Enabled** (16k budget).
 * **Capabilities:**
     * Has direct "visual" access to specific P&ID files (e.g., `pid_sample_1.pdf`) via Artifact Service.
     * Uses "Thinking" to trace lines and resolve ambiguous tags before answering.
@@ -35,7 +35,7 @@ The application implements a hierarchical architecture where a central "Overseer
 
 ### Agent 3: "The Instructor" (Educational RAG)
 * **Role:** P&ID Instructor.
-* **Configuration:** `gemini-2.5-pro` with **Thinking Enabled** (16k budget).
+* **Configuration:** `gemini-3-pro-preview` with **Thinking Enabled** (16k budget).
 * **Capabilities:**
     * Has access to course material (e.g., `learning_course.pdf`).
     * Uses "Thinking" to plan lesson structures and analogies based on the curriculum.
