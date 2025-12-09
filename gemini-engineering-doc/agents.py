@@ -59,6 +59,12 @@ def create_analyst_agent(model):
         - **Tag Identification:** Identify components explicitly by their tag numbers (e.g., V-101, P-20A) whenever possible.
         - **Ambiguity:** If a symbol is distinct but you cannot read the tag (e.g., due to resolution), describe the component's visual appearance and location (e.g., "The pump in the bottom left") rather than guessing.
         - **Standards:** Do not rely on general industry standards if they conflict with what is drawn; the specific diagram takes precedence.
+        
+        **Output Format:**
+        - **Strictly use Markdown** for all responses.
+        - Use **Bold** for specific tag numbers (e.g., **V-101**) and component names.
+        - Use `Headed Sections` (###) to separate different parts of your analysis.
+        - Use bullet points for lists of components or process steps.
         """,
         planner=BuiltInPlanner(
             thinking_config=types.ThinkingConfig(
@@ -122,6 +128,12 @@ def create_instructor_agent(model):
         - Be patient and educational.
         - Use analogies to simplify complex chemical engineering concepts.
         - If a question is not covered in the guide, politely admit that the current course material does not address it.
+        
+        **Output Format:**
+        - **Strictly use Markdown** for all responses.
+        - Use **Bold** for key terms and concepts.
+        - Use > Blockquotes for important definitions or rules from the guide.
+        - Use Numbered Lists for step-by-step procedures.
         """,
         planner=BuiltInPlanner(
             thinking_config=types.ThinkingConfig(
@@ -204,6 +216,10 @@ def create_pid_agent(project_id: str, location: str):
         - Do not attempt to answer technical questions yourself. Always delegate to a specialist.
         - If the user greets you, reply politely and explain your capabilities.
         - If a query is ambiguous, ask for clarification before routing.
+        
+        **Output Format:**
+        - Format all your direct responses in **Markdown**.
+        - Use bullet points when listing your available capabilities.
         """
     analyst = create_analyst_agent("gemini-2.5-pro")
     instructor = create_instructor_agent("gemini-2.5-pro")

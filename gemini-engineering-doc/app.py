@@ -2,7 +2,7 @@ import streamlit as st
 import os
 import pandas as pd
 from dotenv import load_dotenv
-from agents import create_pid_agent,setup_artifact_service
+from agents import create_pid_agent, setup_artifact_service
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
@@ -34,8 +34,7 @@ hcol1, hcol2, hcol3 = st.columns([1, 2, 1])
 with hcol2: 
     st.image("assets/architecture.png", width='stretch')
 
-
-
+# --- Agent Profiles & Context ---
 col1, col2, col3 = st.columns(3)
 
 with col1:
@@ -68,21 +67,26 @@ questions = [
     "What are the key components of our pid_sample_1.pdf P&ID document?",
     "Who would need to sign off on a P&ID Document?"
 ]
-with st.form(key='question_form'):
-    # The user selects a question
-    selected_question = st.selectbox("Choose a question:", questions)
-    
-    # The submit button
-    submit_button = st.form_submit_button(label='Ask a Question')
 
+# --- Query Section ---
+st.divider()
+
+with st.form(key='question_form'):
+    selected_question = st.selectbox("Choose a question:", questions)
+    submit_button = st.form_submit_button(label='Ask a Question')
 
 if submit_button:
     if not project_id or not location:
         st.error("Please provide a Project ID and Location.")
     else:
-        try:
-            import asyncio
+        # 1. Setup UI Layout: Log Expander on top, Final Response below
+        thoughts_expander = st.expander("Agent Reasoning & Logs", expanded=True)
+        
+        st.subheader("Final Response")
+        final_response_placeholder = st.empty() # Single placeholder for the final answer
+        final_response_placeholder.info("Agents are working...")
 
+        try:
             # Create the RCA pipeline
             overseer_agent = create_pid_agent(project_id=project_id, location=location)
             
@@ -102,8 +106,9 @@ if submit_button:
                 user_id="user1", 
                 session_id=session.id
             ))
+            
             if not artifact_service:
-                print("CRITICAL: Failed to load artifacts!")
+                thoughts_expander.error("CRITICAL: Failed to load artifacts!")
 
             runner = Runner(
                 agent=overseer_agent,
@@ -112,93 +117,49 @@ if submit_button:
                 session_service=session_service
             )
             
-            # The initial prompt for the researcher agent
             user_message_parts = [types.Part(text=selected_question)]
-            user_content = types.Content(
-                role='user', 
-                parts=user_message_parts
-            )
+            user_content = types.Content(role='user', parts=user_message_parts)
 
-            # Run the sequential pipeline and collect outputs
-            overseer_output = ""
-            instructor_output = ""
-            analyst_output = ""
-
-            with st.status("Running P&ID Agents...", expanded=True) as main_status:
+            # --- Event Loop ---
+            # We open the expander context to stream logs into it
+            with thoughts_expander:
+                st.caption("Stream initiated...")
+                
                 events = runner.run(
                     user_id="user1", 
                     session_id=session.id, 
                     new_message=user_content
                 )
-                for event in events:
-                    st.write(event)
-                    # Track which agent is currently active
-                    if event.author == "overseer_agent":
-                        if event.is_final_response() and event.content:
-                            overseer_output = event.content.parts[0].text
-                    elif event.author == "analyst_agent":
-                        if event.is_final_response() and event.content:
-                            analyst_output = event.content.parts[0].text
-                    elif event.author == "instructor_agent":
-                        if event.is_final_response() and event.content:
-                            instructor_output = event.content.parts[0].text
                 
-                main_status.update(label="Answer Complete", state="complete")
-        
-            # Display results in columns
-            rcol1, rcol2, rcol3 = st.columns(3)
-            with col1:
-               
-                # Overseer Results
-                st.write("**Overseer Output:**")
-                if overseer_output:
-                    try:
-                        # Try to parse as JSON if it looks like JSON
-                        if overseer_output.strip().startswith('{'):
-                            overseer_json = json.loads(overseer_output)
-                            st.json(overseer_json)
-                        else:
-                            st.write(overseer_output)
-                    except:
-                        st.write(overseer_output)
-                else:
-                    st.info("Overseer currently overseeing :) ...")
-            
-            with col2:
-                # Analyst Results
-                with st.expander("Response", expanded=True):
-                    st.write("**Analyst Output:**")
-                    if analyst_output:
-                        try:
-                            # Try to parse as JSON if it looks like JSON
-                            if analyst_output.strip().startswith('{'):
-                                analyst_json = json.loads(analyst_output)
-                                st.json(analyst_json)
-                            else:
-                                st.write(analyst_output)
-                        except:
-                            st.write(analyst_output)
-                    else:
-                        st.info("Currently Analyzing ...")
-            with col3:
-                # Instructor Results
-                with st.expander("Response", expanded=True):
-                    st.write("**Instructor Output:**")
-                    if instructor_output:
-                        try:
-                            # Try to parse as JSON if it looks like JSON
-                            if instructor_output.strip().startswith('{'):
-                                instructor_json = json.loads(instructor_output)
-                                st.json(instructor_json)
-                            else:
-                                st.write(instructor_output)
-                        except:
-                            st.write(instructor_output)
-                    else:
-                        st.info("Currently Instructing :) ...")
+                for event in events:
+                    if hasattr(event, 'content') and event.content and event.content.parts:
+                        for part in event.content.parts:
+                            
+                            # -- CAPTURE THOUGHTS (Inside Expander) --
+                            if hasattr(part, 'thought') and part.thought:
+                                st.markdown(f"**🧠 {event.author} Thought:**")
+                                st.info(part.text) 
 
-            for event in events:
-                st.write(event)
+                            # -- CAPTURE FUNCTION CALLS (Inside Expander) --
+                            elif hasattr(part, 'function_call') and part.function_call:
+                                st.markdown(f"**⚡ {event.author} Action:**")
+                                st.code(f"Calling Tool: {part.function_call.name}\nArgs: {part.function_call.args}", language="json")
+
+                            # -- CAPTURE FINAL TEXT (Outside Expander) --
+                            elif hasattr(part, 'text') and part.text:
+                                # We update the main placeholder outside this 'with' block
+                                # But since Streamlit allows updating placeholders from anywhere, we call it here.
+                                
+                                # Optional: You can prepend the author name if you want to see who said it
+                                final_response_placeholder.markdown(f"**{event.author}:**\n\n{part.text}")
+                                
+                                # Or just raw text as per your request:
+                                # final_response_placeholder.markdown(part.text)
+
+                    # -- CAPTURE SYSTEM ACTIONS (Inside Expander) --
+                    if hasattr(event, 'actions') and event.actions:
+                        if event.actions.transfer_to_agent:
+                            st.write(f"🔄 **System:** Transferring execution to `{event.actions.transfer_to_agent}`")
 
         except Exception as e:
             st.error(f"An error occurred: {e}")
