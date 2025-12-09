@@ -215,12 +215,17 @@ def create_pid_agent(project_id: str, location: str):
         - Format all your direct responses in **Markdown**.
         - Use bullet points when listing your available capabilities.
         """
-    analyst = create_analyst_agent("gemini-2.5-pro")
-    instructor = create_instructor_agent("gemini-2.5-pro")
+    analyst = create_analyst_agent("gemini-3-pro-preview")
+    instructor = create_instructor_agent("gemini-3-pro-preview")
 
     return Agent(
-        model="gemini-2.5-pro",
+        model="gemini-3-pro-preview",
         name="overseer_agent",
         instruction=overseer_instructions,
-        sub_agents=[analyst, instructor]
+        sub_agents=[analyst, instructor],
+        planner=BuiltInPlanner(
+            thinking_config=types.ThinkingConfig(
+                include_thoughts=True
+            )
+        )
     )

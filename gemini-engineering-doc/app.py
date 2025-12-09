@@ -11,10 +11,10 @@ import asyncio
 load_dotenv()
 
 # Page Config
-st.set_page_config(page_title="Gemini P&ID Multi-Agent", layout="wide")
+st.set_page_config(page_title="Gemini 3 Pro P&ID Multi-Agent", layout="wide")
 
 # Title
-st.title("Gemini P&ID Multi-Agent")
+st.title("Gemini 3 Pro P&ID Multi-Agent")
 
 # Sidebar
 with st.sidebar:
@@ -27,9 +27,9 @@ with st.sidebar:
     if location:
         os.environ["LOCATION"] = location
 
-st.header("P&ID Document Insights")
 hcol1, hcol2, hcol3 = st.columns([1, 2, 1])
 with hcol2: 
+    st.markdown("<h2 style='text-align: center;'>Multi-Agent Architecture</h2>", unsafe_allow_html=True)
     st.image("assets/architecture.png", width='stretch')
 
 with st.expander("Analyst Context: pid_sample_1.pdf", expanded=False):
