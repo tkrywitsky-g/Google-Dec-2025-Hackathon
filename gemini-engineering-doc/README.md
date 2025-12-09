@@ -1,29 +1,28 @@
-# 🏭 Gemini P&ID Orchestrator
+# 🏭 Gemini P&ID Multi-Agent
 
 > **An Agentic Workflow for Engineering Document Analysis**
-> This demo showcases how to use the Google Agent Developer Kit (ADK) to build a hierarchical AI system that can read complex engineering diagrams (P&IDs) and teach users about them.
+> This demo showcases how to use the Google Agent Developer Kit (ADK) to build a hierarchical AI system where specialized "Thinking" agents analyze engineering diagrams and teach users about them.
 
 ## 🎯 The Mission
-Processing P&IDs (Piping and Instrumentation Diagrams) usually requires two distinct skill sets:
+Processing P&IDs (Piping and Instrumentation Diagrams) requires two distinct skill sets:
 1.  **Visual Analysis:** Tracing lines, reading tags, and understanding connectivity.
 2.  **Domain Knowledge:** Understanding symbols, standards, and engineering rules.
 
-This application solves this by using an **Orchestrator Pattern**. A central "Overseer" agent listens to the user and dynamically routes the request to the correct specialist—either the "Analyst" (who looks at the diagram) or the "Instructor" (who reads the training manual).
+This application uses an **Orchestrator Pattern**. A central "Overseer" routes requests to specialized agents—the "Analyst" (for diagrams) and "Instructor" (for manuals)—who utilize **Gemini's Thinking process** to reason through complex tasks.
 
 ## 🏗 The Architecture
 
 This project uses **Google ADK** to manage state, artifacts, and routing.
 
-* **The Overseer (Gemini 2.5 Pro):** The boss. It creates a plan and delegates tasks. It uses `ThinkingConfig` to reason about *which* agent is best suited for the query.
-* **The Analyst:** A sub-agent equipped with `pid_sample_1.pdf` in its context window. It answers questions like *"What does this document depict?"*
-* **The Instructor:** A sub-agent equipped with `learning_course.pdf`. It answers questions like *"What are the key components of a P&ID?"*
+* **The Overseer (Gemini 2.5 Pro):** The router. It identifies user intent and delegates the conversation to the correct sub-agent.
+* **The Analyst (Thinking Enabled):** A specialist equipped with `pid_sample_1.pdf`. It uses a 16k token thinking budget to carefully trace process lines and identify components.
+* **The Instructor (Thinking Enabled):** A specialist equipped with `learning_course.pdf`. It uses a 16k token thinking budget to formulate educational explanations based strictly on the provided text.
 
 ## 🚀 Getting Started
 
 ### Prerequisites
 * Python 3.10+
 * A Google Cloud Project with Vertex AI API enabled.
-* Access to Gemini 2.5 Pro (or Flash) models.
 
 ### Installation
 
@@ -34,14 +33,15 @@ This project uses **Google ADK** to manage state, artifacts, and routing.
 
 2.  **Install dependencies:**
     ```bash
-    pip install streamlit google-adk google-genai python-dotenv
+    pip install -r requirements.txt
     ```
 
 3.  **Setup Environment:**
-    Create a `.env` file (optional, or use the UI sidebar):
+    [cite_start]Create a `.env` file based on the provided template[cite: 1]:
     ```text
-    GOOGLE_CLOUD_PROJECT="your-project-id"
+    GOOGLE_CLOUD_PROJECT="YOUR_PROJECT_ID"
     GOOGLE_CLOUD_LOCATION="us-central1"
+    GOOGLE_GENAI_USE_VERTEXAI="TRUE"
     ```
 
 4.  **Add Assets:**
@@ -57,8 +57,8 @@ This project uses **Google ADK** to manage state, artifacts, and routing.
 
 ## 🧠 Key Features in Code
 
-### 1. "Thinking" Models
-We utilize Gemini's thinking capability to improve routing accuracy. You can see this in `agents.py`:
+### 1. "Thinking" Specialists
+We utilize Gemini's thinking capability for the sub-agents to improve accuracy on visual and educational tasks. You can see this in `agents.py`:
 ```python
 planner=BuiltInPlanner(
     thinking_config=types.ThinkingConfig(
