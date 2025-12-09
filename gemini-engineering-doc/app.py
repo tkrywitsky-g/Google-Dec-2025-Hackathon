@@ -32,29 +32,13 @@ hcol1, hcol2, hcol3 = st.columns([1, 2, 1])
 with hcol2: 
     st.image("assets/architecture.png", width='stretch')
 
-# --- Agent Profiles & Context ---
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.subheader("Overseer")
-    st.image("assets/overseer.png", width='stretch')
-
-with col2:
-    st.subheader("Analyst")
-    st.image("assets/analyst.png", width='stretch')
-    
-
-with col3:
-    st.subheader("Instructor")
-    st.image("assets/instructor.png", width='stretch')
-
-with st.expander("Analyst Context", expanded=False):
+with st.expander("Analyst Context: pid_sample_1.pdf", expanded=False):
         try:
             with open("assets/pid_sample_1.pdf", "rb") as file:
                 st.pdf(file.read(), height=600)
         except FileNotFoundError:
             st.error("Please ensure 'pid_sample_1.pdf' is in the app's asset directory.")
-with st.expander("Instructor Context", expanded=False):
+with st.expander("Instructor Context: learning_course.pdf", expanded=False):
     try:
         with open("assets/learning_course.pdf", "rb") as file:
             st.pdf(file.read(), height=600)
@@ -147,14 +131,7 @@ if submit_button:
 
                             # -- CAPTURE FINAL TEXT (Outside Expander) --
                             elif hasattr(part, 'text') and part.text:
-                                # We update the main placeholder outside this 'with' block
-                                # But since Streamlit allows updating placeholders from anywhere, we call it here.
-                                
-                                # Optional: You can prepend the author name if you want to see who said it
                                 final_response_placeholder.markdown(f"**{event.author}:**\n\n{part.text}")
-                                
-                                # Or just raw text as per your request:
-                                # final_response_placeholder.markdown(part.text)
 
                     # -- CAPTURE SYSTEM ACTIONS (Inside Expander) --
                     if hasattr(event, 'actions') and event.actions:
