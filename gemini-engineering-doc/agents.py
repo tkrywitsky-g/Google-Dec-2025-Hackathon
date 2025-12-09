@@ -1,81 +1,99 @@
 from google.adk.agents import Agent
-from google.genai import types
+from google.genai import types, Client
 from google.adk.planners import BuiltInPlanner
 from google.adk.artifacts import InMemoryArtifactService
 from pathlib import Path
 from google.adk.tools import ToolContext
 import vertexai
-from google.adk.models import Gemini
+import os
+from google.adk.agents.callback_context import CallbackContext
+from google.adk.models import LlmResponse, LlmRequest
+from typing import Optional
 
 from google.adk import Agent
 
 ASSETS_DIR = Path("./assets")
 
-# TOOL for Analyst Sub Agent to get files from Artifact Serivce
-def fetch_pid_diagram(tool_context: ToolContext):
-    """
-    Retrieves the 'pid_sample_1.pdf' document from the artifact store.
-    Call this tool immediately when asked questions about line numbers, 
-    valves, or equipment in the project documentation.
-    """
-    # The filename matches what we defined in bootstrap.py
-    filename = "pid_sample_1.pdf" 
+async def inject_pid_context(callback_context: CallbackContext, llm_request: LlmRequest) -> Optional[LlmResponse]:
+    print("⚡ [Callback] Injecting P&ID into context...")
     
+    # 1. Load the file (Pass-by-Value, but it's okay because it's User Role)
+    # Note: In a real app, you might check context.state to see if it's already loaded
+    filename = "pid_sample_1.pdf"
     try:
-        print(f"[Analyst] Fetching {filename}...")
-        
-        # We access the service via the context provided by the Runner
-        # This returns the specific version of the artifact we saved earlier
-        artifact = tool_context.load_artifact(filename)
-        
-        # We return the artifact directly. 
-        # The ADK Runner automatically injects this 'Part' (PDF bytes) 
-        # into the model's context window.
-        return artifact
-        
+        # Load the latest version
+        report_artifact = await callback_context.load_artifact(filename=filename)
+
+        if report_artifact and report_artifact.inline_data:
+            print(f"Successfully loaded latest Python artifact '{filename}'.")
+            print(f"MIME Type: {report_artifact.inline_data.mime_type}")
+            # Process the report_artifact.inline_data.data (bytes)
+            pdf_bytes = report_artifact.inline_data.data
+            print(f"Report size: {len(pdf_bytes)} bytes.")
+            # ... further processing ...
+        else:
+            print(f"Python artifact '{filename}' not found.")
+
+    except ValueError as e:
+        print(f"Error loading Python artifact: {e}. Is ArtifactService configured?")
     except Exception as e:
-        return f"Error: Could not retrieve P&ID file. Details: {e}"
-    
+        # Handle potential storage errors
+        print(f"An unexpected error occurred during Python artifact load: {e}")
+
 def create_analyst_agent(model):
 
     return Agent(
-        name="PID_Analyst",
+        name="analyst_agent",
         model=model,
-        
-        # Register the tool we just created
-        tools=[fetch_pid_diagram],
-        
+        before_model_callback=inject_pid_context,        
         instruction="""
         You are a Senior Process Engineer acting as a P&ID Analyst.
         
-        **Your Goal:** Answer technical questions based *strictly* on the provided P&ID diagram.
+        **Context:** A P&ID diagram (PDF) has been attached to the user's message in your context. 
+        You have immediate visual access to this document.
         
-        **Critical Instruction:**
-        You cannot answer questions until you see the diagram. 
-        ALWAYS call the tool `fetch_pid_diagram` as your first step.
+        **Your Goal:** Answer technical questions based *strictly* on the visual information in that attached diagram.
         
         **Analysis Guidelines:**
-        - Trace lines carefully from source to destination.
-        - Identify components by their tag numbers (e.g., V-101, P-20A).
-        - If a symbol is ambiguous, describe its visual appearance and ask the user to clarify.
-        - Do not assume standards from external knowledge; look at the diagram first.
-        """
+        - **Visual Tracing:** Trace process lines carefully from source to destination to confirm flow direction.
+        - **Tag Identification:** Identify components explicitly by their tag numbers (e.g., V-101, P-20A) whenever possible.
+        - **Ambiguity:** If a symbol is distinct but you cannot read the tag (e.g., due to resolution), describe the component's visual appearance and location (e.g., "The pump in the bottom left") rather than guessing.
+        - **Standards:** Do not rely on general industry standards if they conflict with what is drawn; the specific diagram takes precedence.
+        """,
+        planner=BuiltInPlanner(
+            thinking_config=types.ThinkingConfig(
+                include_thoughts=True,
+                thinking_budget=16000,
+            )
+        )
     )
 
-def fetch_course_guide(tool_context: ToolContext):
-    """
-    Retrieves the 'learning_course.pdf' from the artifact store.
-    Call this tool when the user asks 'How-to' questions, asks for definitions, 
-    or wants to learn about P&ID symbols and standards.
-    """
+async def inject_instructor_context(callback_context: CallbackContext, llm_request: LlmRequest) -> Optional[LlmResponse]:
+    print("⚡ [Callback] Injecting Learnign Course into context...")
+    
+    # 1. Load the file (Pass-by-Value, but it's okay because it's User Role)
+    # Note: In a real app, you might check context.state to see if it's already loaded
     filename = "learning_course.pdf"
     try:
-        print(f"[Instructor] Opening course material: {filename}...")
-        artifact = tool_context.load_artifact(filename)
-        return artifact
+        # Load the latest version
+        report_artifact = await callback_context.load_artifact(filename=filename)
+
+        if report_artifact and report_artifact.inline_data:
+            print(f"Successfully loaded latest Python artifact '{filename}'.")
+            print(f"MIME Type: {report_artifact.inline_data.mime_type}")
+            # Process the report_artifact.inline_data.data (bytes)
+            pdf_bytes = report_artifact.inline_data.data
+            print(f"Report size: {len(pdf_bytes)} bytes.")
+            # ... further processing ...
+        else:
+            print(f"Python artifact '{filename}' not found.")
+
+    except ValueError as e:
+        print(f"Error loading Python artifact: {e}. Is ArtifactService configured?")
     except Exception as e:
-        return f"Error: Could not retrieve Course Guide. Details: {e}"
-    
+        # Handle potential storage errors
+        print(f"An unexpected error occurred during Python artifact load: {e}")
+
 def create_instructor_agent(model):
     """
     Call this agent when the user wants to learn concepts, 
@@ -84,104 +102,36 @@ def create_instructor_agent(model):
     
     # Placeholder: Logic to invoke the Instructor Agent
     return Agent(
-        name="PID_Instructor",
+        name="instructor_agent",
         model=model,
-        tools=[fetch_course_guide],
+        before_model_callback=inject_instructor_context,
         instruction="""
         You are a friendly and knowledgeable P&ID Instructor.
         
-        **Your Goal:** Teach the user about Process and Instrumentation Diagrams using the provided Course Guide.
+        **Context:** A Course Guide (`learning_course.pdf`) has been attached to the conversation. 
+        You have direct access to this document in your context history.
         
-        **Workflow:**
-        1. Always access the `learning_course.pdf` using your tool before answering.
-        2. When explaining a symbol or concept, reference the specific section or page in the guide if possible.
-        3. If the user asks about a specific symbol, describe it visually based on the guide.
+        **Your Goal:** Teach the user about Process and Instrumentation Diagrams using the content of that attached guide.
+        
+        **Teaching Guidelines:**
+        - **Source of Truth:** Base your explanations strictly on the provided guide. Do not lecture on general topics unless they are present in the material.
+        - **Referencing:** When explaining a symbol or concept, explicitly mention the page number or section title where it is found (e.g., "As shown on slide 4...").
+        - **Visual Descriptions:** Since the user might not be looking at the specific page you are, describe the visuals. (e.g., "The gate valve symbol looks like a bow-tie...").
         
         **Tone:**
         - Be patient and educational.
-        - Use analogies if they help explain complex chemical engineering concepts.
-        - If the user asks a question not covered in the guide, admit you don't know rather than guessing.
-        """
+        - Use analogies to simplify complex chemical engineering concepts.
+        - If a question is not covered in the guide, politely admit that the current course material does not address it.
+        """,
+        planner=BuiltInPlanner(
+            thinking_config=types.ThinkingConfig(
+                include_thoughts=True,
+                thinking_budget=16000,
+            )
+        )
     )
 
-#   generate_content_config = types.GenerateContentConfig(
-#     temperature = 1,
-#     top_p = 0.95,
-#     max_output_tokens = 32768,
-#     response_modalities = ["IMAGE"],
-#     safety_settings = [types.SafetySetting(
-#       category="HARM_CATEGORY_HATE_SPEECH",
-#       threshold="OFF"
-#     ),types.SafetySetting(
-#       category="HARM_CATEGORY_DANGEROUS_CONTENT",
-#       threshold="OFF"
-#     ),types.SafetySetting(
-#       category="HARM_CATEGORY_SEXUALLY_EXPLICIT",
-#       threshold="OFF"
-#     ),types.SafetySetting(
-#       category="HARM_CATEGORY_HARASSMENT",
-#       threshold="OFF"
-#     )],
-#     image_config=types.ImageConfig(
-#       aspect_ratio="1:1",
-#       image_size="1K",
-#       output_mime_type="image/png",
-#     ),
-#   )
-def fetch_reference_guide(tool_context: ToolContext):
-    """
-    Retrieves the 'reference_guide.pdf' from the artifact store.
-    Call this tool when the user asks to draw, sketch, or generate a diagram.
-    This guide contains the standard symbols and assembly patterns.
-    """
-    filename = "reference_guide.pdf"
-    try:
-        print(f"[Drafter] Consult standards in: {filename}...")
-        artifact = tool_context.load_artifact(filename)
-        return artifact
-    except Exception as e:
-        return f"Error: Could not retrieve Reference Guide. Details: {e}"
-    
-def create_drafter_agent(model):
-    """
-    Call this agent when the user asks to generate, draw, or visualize 
-    a P&ID segment or component.
-    """
-    
-    # Placeholder: Logic to invoke the Drafter Agent
-    return Agent(
-        name="PID_Drafter",
-        model=model,
-        tools=[fetch_reference_guide],
-        instruction="""
-        You are a Technical Draftsman specialized in generating P&ID schemas.
-        
-        **Your Goal:** Convert user requests into valid Mermaid.js flowchart code.
-        
-        **Workflow:**
-        1.  **Consult Standards:** Use `fetch_reference_guide` to check if the requested assembly (e.g., "Bypass Loop") has a standard configuration.
-        2.  **Plan the Topology:** Identify the main flow (Left to Right) and the components.
-        3.  **Generate Code:** Output a Markdown code block containing the graph.
-        
-        **Formatting Rules:**
-        - Use `mermaid` syntax.
-        - Use `flowchart LR` (Left-to-Right) orientation.
-        - Represent Tanks/Vessels as subgraphs or cylindrical shapes `[()]`.
-        - Represent Valves as specific nodes, e.g., `V101{{Gate Valve}}`.
-        - Label lines with the medium if known (e.g., `Tank -->|Water| Pump`).
-        
-        **Example Output:**
-        ```mermaid
-        flowchart LR
-            A[Tank 1] -->|Feed| B(Pump 101)
-            B --> C{Valve 202}
-            C -->|Main| D[Mixer]
-            C -->|Bypass| E[Drain]
-        ```
-        """
-    )
-
-async def setup_artifact_service():
+async def setup_artifact_service(app_name, user_id, session_id):
     """
     Initializes the InMemoryArtifactService and pre-loads 
     specific PDF documents from the local assets folder.
@@ -193,9 +143,9 @@ async def setup_artifact_service():
     
     # 2. Define the files we want to preload
     # We map the local filename to the artifact name we want in the system
+
     files_to_load = [
-        "learning_course.pdf",
-        "reference_guide.pdf", 
+        "learning_course.pdf", 
         "pid_sample_1.pdf"
     ]
 
@@ -209,20 +159,23 @@ async def setup_artifact_service():
 
         try:
             # Read the raw bytes from the local disk
-            file_bytes = file_path.read_bytes()
+            pdf_bytes = file_path.read_bytes()
+            pdf_mime_type = "application/pdf"
             
             # Create the Gemini Part object
             # This is the format the LLM natively understands
-            artifact_part = types.Part.from_bytes(
-                data=file_bytes,
-                mime_type="application/pdf"
+            pdf_artifact_py = types.Part(
+                inline_data=types.Blob(data=pdf_bytes, mime_type=pdf_mime_type)
             )
             
             # Save it into the In-Memory Service
             # Note: We use the filename as the key/ID for retrieval later
             await artifact_service.save_artifact(
                 filename=filename, 
-                artifact=artifact_part
+                artifact=pdf_artifact_py,
+                app_name=app_name,
+                user_id=user_id,
+                session_id=session_id
             )
             
             print(f"✅ Loaded: {filename}")
@@ -237,8 +190,6 @@ async def setup_artifact_service():
 def create_pid_agent(project_id: str, location: str):
     print(f"project={project_id}, location={location}")
     vertexai.init(project=project_id, location=location)
-    model = Gemini(model_name="gemini-2.5-pro") # gemini-3-pro-preview
-    image_model = Gemini(model_name="gemini-3-pro-image-preview")
     
     overseer_instructions = """
         You are the "Overseer," a specialized orchestrator for a Chemical Engineering P&ID Assistant.
@@ -254,20 +205,18 @@ def create_pid_agent(project_id: str, location: str):
         - If the user greets you, reply politely and explain your capabilities.
         - If a query is ambiguous, ask for clarification before routing.
         """
-    # analyst = create_analyst_agent(model)
-    # instructor = create_instructor_agent(model)
-    # drafter = create_drafter_agent(image_model)
+    analyst = create_analyst_agent("gemini-2.5-pro")
+    instructor = create_instructor_agent("gemini-2.5-pro")
 
     return Agent(
-        model=model,
-        name="pid_orchestrator",
+        model="gemini-2.5-pro",
+        name="overseer_agent",
         instruction=overseer_instructions,
-        # tools=[analyst, instructor, drafter],
-        # planner=BuiltInPlanner(
-        #     thinking_config=types.ThinkingConfig(
-        #         include_thoughts=True,
-        #         thinking_budget=1024,
-        #         # thinking_level="high",
-        #     )
-        # )
+        sub_agents=[analyst, instructor],
+        planner=BuiltInPlanner(
+            thinking_config=types.ThinkingConfig(
+                include_thoughts=True,
+                thinking_budget=16000,
+            )
+        )
     )
