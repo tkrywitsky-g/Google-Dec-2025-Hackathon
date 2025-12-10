@@ -40,7 +40,13 @@ This repository implements a **Sequential Agent Pipeline** using Google's Agent 
     cd gemini-vision
     ```
 
-2.  **Install dependencies:**
+2.  **Create and activate a virtual environment:**
+    ```bash
+    python -m venv venv
+    source venv/bin/activate 
+    ```
+
+3.  **Install dependencies:**
     ```bash
     pip install -r requirements.txt
     ```
@@ -50,7 +56,7 @@ This repository implements a **Sequential Agent Pipeline** using Google's Agent 
     - `google-adk` - Google's Agent Developer Kit
     - `python-dotenv` - for environment variables
 
-3.  **Configure environment variables:**
+4.  **Configure environment variables:**
     Copy the template file and update with your project details:
     ```bash
     cp .env_template .env
@@ -68,18 +74,18 @@ This repository implements a **Sequential Agent Pipeline** using Google's Agent 
     GOOGLE_CLOUD_LOCATION="us-central1"
     ```
     
-    > **Note:** Ensure you have authenticated with Google Cloud:
+    > **Note:** If you see authentication errors, ensure you have authenticated with Google Cloud:
     > ```bash
     > gcloud auth application-default login
     > ```
 
-4.  **Add test images:**
-    Place aerial images in `assets/` directory:
+5.  **Verify test images:**
+    Open the aerial images in `assets/` directory:
     - `clear.jpg` - clear ROW scene
     - `farm.jpg` - farm with livestock
     - `excavator.jpg` - heavy machinery
 
-5.  **Run the App:**
+6.  **Run the App:**
     ```bash
     streamlit run app.py
     ```
