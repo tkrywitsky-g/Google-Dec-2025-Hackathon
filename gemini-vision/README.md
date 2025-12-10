@@ -50,11 +50,28 @@ This repository implements a **Sequential Agent Pipeline** using Google's Agent 
     - `google-adk` - Google's Agent Developer Kit
     - `python-dotenv` - for environment variables
 
-3.  **Set your API Key:**
-    Create a `.env` file in the `gemini-vision` directory:
-    ```text
-    GOOGLE_API_KEY="your_api_key_here"
+3.  **Configure environment variables:**
+    Copy the template file and update with your project details:
+    ```bash
+    cp .env_template .env
     ```
+    
+    Edit `.env` with your Google Cloud project settings:
+    ```text
+    # Required for ADK to use Vertex AI
+    GOOGLE_GENAI_USE_VERTEXAI=True
+    
+    # Your Google Cloud Project ID
+    GOOGLE_CLOUD_PROJECT="your-project-id"
+    
+    # The Vertex AI location/region
+    GOOGLE_CLOUD_LOCATION="us-central1"
+    ```
+    
+    > **Note:** Ensure you have authenticated with Google Cloud:
+    > ```bash
+    > gcloud auth application-default login
+    > ```
 
 4.  **Add test images:**
     Place aerial images in `assets/` directory:

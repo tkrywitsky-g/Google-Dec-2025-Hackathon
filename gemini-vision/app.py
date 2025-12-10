@@ -7,8 +7,9 @@ from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
 from google.genai import types
 
-# Load environment variables
-load_dotenv()
+# Load environment variables from .env file in the same directory as this script
+env_path = os.path.join(os.path.dirname(__file__), '.env')
+load_dotenv(dotenv_path=env_path)
 
 # Page Config
 st.set_page_config(page_title="SkyGuard ROW Monitor", layout="wide")
